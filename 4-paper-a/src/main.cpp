@@ -47,26 +47,21 @@ struct Point {
 };
 
 static constexpr array<Point, 8> deltasToNearest8{
-    {Point(+1 , -1),  
-     Point(+1 ,  0), 
-     Point(+1 , +1), 
-     Point( 0 , +1), 
-     Point(-1 , +1),
-     Point(-1 , -0), 
-     Point(-1 , -1), 
-     Point( 0 , -1)}};
+    {Point(+1, -1), Point(+1, 0), Point(+1, +1), Point(0, +1), Point(-1, +1),
+     Point(-1, -0), Point(-1, -1), Point(0, -1)}};
 
 template <uint Columns, uint Rows> struct PaperMap {
+  uint _removedPaper{};
   vector<int> _map;
   PaperMap(vector<int> &&data) : _map(std::move(data)) {}
 
-  bool IsInBound(Point p) {
+  bool IsInBound(Point p) const {
     return p.x >= 0 && p.y >= 0 && p.x < Columns && p.y < Rows;
   }
 
-  bool IsFree(Point p) { return _map.at(p.x + p.y * Columns) == 0; }
+  bool IsFree(Point p) const { return _map.at(p.x + p.y * Columns) == 0; }
 
-  vector<Point> GetValidNearest8(Point point) {
+  vector<Point> GetValidNearest8(Point point) const {
     vector<Point> v;
     for (const auto &delta : deltasToNearest8) {
       if (IsInBound(point + delta)) {
@@ -76,7 +71,7 @@ template <uint Columns, uint Rows> struct PaperMap {
     return v;
   }
 
-  uint CountAdjacentPaper(Point p) {
+  uint CountAdjacentPaper(Point p) const {
     uint counter{};
     for (auto adjacent : GetValidNearest8(p)) {
       if (!IsFree(adjacent)) {
@@ -86,6 +81,11 @@ template <uint Columns, uint Rows> struct PaperMap {
     return counter;
   }
 
+  void RemovePaper(Point p) {
+    _map.at(p.x + p.y * Columns) = 0;
+    _removedPaper++;
+  }
+  uint CountRemovedPaper() const { return _removedPaper; }
   bool ForkLiftCanAccess(Point p) { return CountAdjacentPaper(p) < 4; }
 };
 
@@ -98,21 +98,25 @@ int main() {
   }
 
   PaperMap<PUZZLE_SIZE, PUZZLE_SIZE> map{std::move(data.value())};
-  uint forkLiftJobs{};
 
-  for (int y = 0; y < PUZZLE_SIZE; y++) {
-    for (int x = 0; x < PUZZLE_SIZE; x++) {
-      const Point p{x,y};
-      if (map.IsFree(p)) {
-        continue;
-      }
-      if (map.ForkLiftCanAccess(p)) {
-        forkLiftJobs++;
+  uint progress{};
+  do {
+    progress = 0;
+    for (int y = 0; y < PUZZLE_SIZE; y++) {
+      for (int x = 0; x < PUZZLE_SIZE; x++) {
+        const Point p{x, y};
+        if (map.IsFree(p)) {
+          continue;
+        }
+        if (map.ForkLiftCanAccess(p)) {
+          map.RemovePaper(p);
+          progress++;
+        }
       }
     }
-  }
+  } while (progress > 0);
 
-  cout << "Result: " << forkLiftJobs << "\n";
+  cout << "Result: " << map.CountRemovedPaper() << "\n";
 
   RunTests();
 
